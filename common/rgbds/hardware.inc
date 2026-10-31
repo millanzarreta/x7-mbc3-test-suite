@@ -1,0 +1,5 @@
+; Shared RGBDS symbols for the X7 MBC3 diagnostic suites.
+DEF MBC_RAM_ENABLE     EQU $0000
+DEF MBC_RAM_RTC_SELECT EQU $4000
+DEF MBC_LATCH          EQU $6000
+DEF SRAM_WINDOW        EQU $A000

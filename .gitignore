@@ -1,0 +1,16 @@
+# Local rebuild products and test captures
+*.sav
+*.srm
+*.ram
+*.rtc
+*.sym
+*.map
+*.o
+*.obj
+__pycache__/
+*.pyc
+.DS_Store
+
+# Generated root build directory.
+build/
+.tmp/

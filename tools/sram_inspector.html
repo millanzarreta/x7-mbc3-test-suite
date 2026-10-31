@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>X7 MBC3 / RTC SRAM Inspector</title>
+<style>
+:root{
+  color-scheme:light dark;
+  --bg:#0f1115;--panel:#171a21;--panel2:#1e222b;--text:#eef2f6;--muted:#9aa7b5;
+  --accent:#62a8ff;--good:#62d394;--warn:#f1c75b;--bad:#ff7b7b;--border:#303745;
+  --mono:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace;
+  --sans:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme:light){:root{--bg:#f5f7fa;--panel:#fff;--panel2:#f3f6f9;--text:#17202a;--muted:#657382;--accent:#1769d2;--good:#17864f;--warn:#9a6a00;--bad:#ba2b2b;--border:#d8dee7}}
+*{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.45}
+main{max-width:1260px;margin:0 auto;padding:32px 20px 64px}.top{display:flex;gap:18px;justify-content:space-between;align-items:flex-start;flex-wrap:wrap}
+h1{margin:0 0 8px;font-size:clamp(1.8rem,4vw,3rem);line-height:1.05}.lead{max-width:820px;color:var(--muted);margin:0}.badge{border:1px solid var(--border);background:var(--panel);padding:8px 12px;border-radius:999px;font:600 .82rem var(--mono)}
+.drop{margin-top:28px;border:2px dashed var(--border);border-radius:16px;background:var(--panel);padding:30px;text-align:center;transition:.15s}.drop.drag{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 15%,transparent)}
+.drop strong{display:block;font-size:1.1rem;margin-bottom:6px}.drop small{color:var(--muted)}input[type=file]{margin-top:16px}.privacy{margin:14px 0 0;color:var(--muted);font-size:.9rem}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0}button{appearance:none;border:1px solid var(--border);background:var(--panel);color:var(--text);padding:9px 13px;border-radius:9px;font-weight:650;cursor:pointer}button:hover{border-color:var(--accent)}button:disabled{opacity:.45;cursor:not-allowed}.primary{background:var(--accent);color:white;border-color:var(--accent)}
+.status{display:none;margin:18px 0;padding:13px 15px;border-radius:10px;border:1px solid var(--border);background:var(--panel)}.status.show{display:block}.status.good{border-color:color-mix(in srgb,var(--good) 55%,var(--border))}.status.warn{border-color:color-mix(in srgb,var(--warn) 55%,var(--border))}.status.bad{border-color:color-mix(in srgb,var(--bad) 55%,var(--border))}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:18px 0}.card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px}.k{font-size:.78rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:5px}.v{font:700 1.03rem var(--mono);word-break:break-word}.goodtxt{color:var(--good)}.warntxt{color:var(--warn)}.badtxt{color:var(--bad)}
+section{margin:26px 0;background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:18px}section h2{margin:0 0 14px;font-size:1.15rem}section h3{margin:18px 0 8px;font-size:1rem}
+table{width:100%;border-collapse:collapse;font-size:.92rem}th,td{text-align:left;padding:8px 9px;border-bottom:1px solid var(--border);vertical-align:top}th{color:var(--muted);font-size:.78rem;text-transform:uppercase;letter-spacing:.05em}td.mono,code,pre{font-family:var(--mono)}.scroll{overflow:auto}.muted{color:var(--muted)}
+.pill{display:inline-block;border:1px solid var(--border);padding:2px 7px;border-radius:999px;font:600 .78rem var(--mono)}.pill.good{color:var(--good)}.pill.warn{color:var(--warn)}.pill.bad{color:var(--bad)}
+details{margin-top:12px}summary{cursor:pointer;font-weight:650}.section-details{margin:0}.section-details>summary{font-size:1.15rem;list-style-position:outside}.section-details[open]>summary{margin-bottom:14px}.journal-row{cursor:pointer}.journal-row:hover{background:color-mix(in srgb,var(--accent) 6%,transparent)}.journal-row:focus{outline:2px solid color-mix(in srgb,var(--accent) 65%,transparent);outline-offset:-2px}.journal-toggle-cell{width:28px;padding-left:4px;padding-right:2px}.journal-toggle{appearance:none;border:0;background:transparent;color:var(--muted);padding:0 3px;font:700 .9rem var(--mono);cursor:pointer}.journal-row[aria-expanded="true"] .journal-toggle{color:var(--accent)}.journal-detail-row>td{padding:0 9px 14px;border-bottom:1px solid var(--border)}.journal-detail-panel{width:100%;background:var(--panel2);border:1px solid var(--border);border-radius:9px;padding:12px}.journal-detail-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px 12px}.detail-field{min-width:0;border:1px solid var(--border);border-radius:7px;padding:8px 10px;background:color-mix(in srgb,var(--panel) 55%,transparent)}.detail-field.raw-field{grid-column:1/-1}.detail-key{color:var(--muted);font:600 .72rem var(--mono);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px}.detail-value{font:.86rem var(--mono);overflow-wrap:anywhere}.raw{font:0.78rem var(--mono);word-break:break-all}.event-state{font-weight:750}.nowrap{white-space:nowrap}pre{white-space:pre-wrap;background:var(--panel2);border-radius:9px;padding:14px;overflow:auto;font-size:.86rem}.hidden{display:none!important}.footer{color:var(--muted);font-size:.84rem;margin-top:28px}
+</style>
+</head>
+<body>
+<main>
+  <div class="top">
+    <div>
+      <h1>X7 MBC3 / RTC SRAM Inspector</h1>
+      <p class="lead">Offline browser inspector for the current X7MBC3DIAG, X7MBC3TRACE and X7POKERTC persistent SRAM formats used by the current <code>v1.0.0</code> ROMs. TRACE keeps functional <code>PRESET</code> separate from the user-defined numeric <code>SCENARIO</code> tag.</p>
+    </div>
+    <div class="badge">X7D8/8 · X7T1/2 · X7P1/1</div>
+  </div>
+
+  <div id="drop" class="drop" tabindex="0" role="button" aria-label="Load SRAM file">
+    <strong>Drop an SRAM save/capture here</strong>
+    <span>for example .srm, .sav, .ram or .bin</span><br>
+    <input id="file" type="file" accept=".srm,.sav,.ram,.bin,application/octet-stream">
+    <p class="privacy">The file is parsed locally in this browser. Nothing is uploaded or sent anywhere.</p>
+  </div>
+
+  <div id="status" class="status" role="status"></div>
+  <div class="actions">
+    <button id="jsonBtn" disabled>Download decoded JSON</button>
+    <button id="resetBtn" disabled>Clear report</button>
+  </div>
+
+  <div id="results" class="hidden">
+    <div id="cards" class="grid"></div>
+    <section><details id="superDetails" class="section-details"><summary>Superblock / current state</summary><div class="scroll"><table id="superTable"></table></div></details></section>
+    <section id="statsSection" class="hidden"><details class="section-details"><summary>Stress statistics</summary><div id="statsSummary" class="muted"></div><div class="scroll"><table id="statsTable"></table></div></details></section>
+    <section id="valueMapSection" class="hidden"><h2>POKERTC VALUE MAP</h2><div class="scroll"><table id="valueMapTable"></table></div></section>
+    <section><h2>Monitored SRAM pattern audit</h2><div id="patternSummary"></div><div class="scroll"><table id="patternTable"></table></div></section>
+    <section id="faultSection" class="hidden"><details class="section-details"><summary>First-fault capsule</summary><div class="scroll"><table id="faultTable"></table></div></details></section>
+    <section><h2>Persistent journal</h2><div id="journalSummary" class="muted"></div><div class="scroll"><table id="journalTable"></table></div></section>
+    <section><h2>Structured data</h2><details><summary>Decoded JSON</summary><pre id="jsonOut"></pre></details></section>
+  </div>
+
+  <p class="footer">Standalone tool from the X7 MBC3 / RTC Test Suite. It intentionally contains no external scripts, fonts, trackers or network requests.</p>
+</main>
+<script>
+'use strict';
+/* CORE START */
+const SRAM_SIZE=0x8000, BANK_SIZE=0x2000;
+const CANARIES={A:[[0xA0,0xB1,0x14,0x00],[0x10,0x20,0x5A,0xA5]],B:[[0xA1,0xB2,0x24,0x30],[0x31,0x42,0x6B,0xC6]],N:[[0xA2,0xB3,0x34,0x40],[0x52,0x63,0x7C,0xD7]]};
+const POKERTC_CAN=[0x3C,0xC3,0x14,0x00], POKERTC_CONST=[0x10,0x20,0x5A,0xA5];
+const COMMON_TESTS={0x00:'BOOT',0x01:'RAM_AUDIT',0x02:'BANK_STRESS',0x03:'SIGNATURE',0x04:'RTC_MAP',0x05:'RTC_STRESS',0x06:'LATCH_STRESS',0x07:'ARM',0x08:'VIEW_RTC',0x09:'STATUS',0x0A:'MASTER'};
+const TRACE_TESTS={...COMMON_TESTS,0x03:'SILVER_TRACE',0x04:'RTC_MAP',0x05:'RTC_TRACE',0x06:'SELECT_TRACE',0x20:'ARM_SILVER',0x21:'ARM_SELECT',0x22:'ARM_RTC_H',0x23:'ARM_RTC_DL',0x24:'ARM_SRAM2',0x25:'ARM_SRAM3'};
+const POKERTC_TESTS={1:'RAM AUDIT',2:'VALUE MAP',3:'POKE GET CLOCK',4:'POKE _GETCLOCK',5:'POKE START RTC',6:'POKE STOP RTC',7:'POKE SAVE RTC',8:'POKE STARTCLOCK',9:'VIEW RTC',10:'STATUS'};
+const MODES={0:'ONESHOT',1:'NORMAL',2:'BARE_MAX',3:'BARE_FIXED',4:'EXTERNAL',5:'SYSTEM'};
+const CONTEXTS={0:'SYSTEM',1:'MANUAL',2:'MASTER',3:'EXTERNAL'};
+const REASONS={0:'NONE',1:'AUTO_PASS',2:'MANUAL_B',3:'MASTER_TIME',4:'MASTER_TARGET',5:'EXT_PASS',6:'BOOT',7:'INIT',8:'ARMED',9:'MASTER_DONE',0xE0:'FAULT'};
+const EVENTS={0x01:'INIT',0x02:'BOOT',0x03:'EXT_PASS',0x10:'TEST_START',0x11:'TEST_PASS',0x20:'ARM',0x30:'MASTER_START',0x31:'MASTER_DONE',0xE0:'FAULT'};
+const PRESETS={1:'SILVER',2:'SELECT',3:'RTC-H',4:'RTC-DL',5:'SRAM2',6:'SRAM3'};
+const STRESS_MODES=['NORMAL','BARE_MAX','BARE_FIXED'];
+const STRESS_TESTS={DIAG:['BANK_STRESS','SIGNATURE','RTC_STRESS','LATCH_STRESS'],TRACE:['BANK_STRESS','SILVER_TRACE','RTC_TRACE','SELECT_TRACE']};
+const SELECTOR_NAMES={0x00:'SRAM bank 0',0x01:'SRAM bank 1',0x02:'SRAM bank 2',0x03:'SRAM bank 3',0x08:'RTC seconds',0x09:'RTC minutes',0x0A:'RTC hours',0x0B:'RTC day low',0x0C:'RTC day high'};
+function pokertcResultName(testId,result){if(result===0)return 'PASS';if(result===0xEE)return 'FAULT';if(result===1)return [2,5,6,7,8].includes(testId)?'ALIAS':'FAIL';return hex(result)}
+function u16(b,o){return b[o]|(b[o+1]<<8)}
+function u32(b,o){return (b[o]|(b[o+1]<<8)|(b[o+2]<<16)|(b[o+3]<<24))>>>0}
+function fmtTicks(ticks){const total=Math.floor(ticks*1000/64);const h=Math.floor(total/3600000),m=Math.floor((total%3600000)/60000),s=Math.floor((total%60000)/1000),ms=total%1000;return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}.${String(ms).padStart(3,'0')}`}
+function sliceBlock(data,bank,rel,len){return data.slice(bank*BANK_SIZE+rel,bank*BANK_SIZE+rel+len)}
+function sumRange(b,end){let s=0;for(let i=0;i<end;i++)s=(s+b[i])&0xFFFF;return s}
+function additive16Ok(b,off){return b.length>off+1 && sumRange(b,off)===u16(b,off)}
+function bytesEq(a,b){if(a.length!==b.length)return false;for(let i=0;i<a.length;i++)if(a[i]!==b[i])return false;return true}
+function ascii4(data,off){return String.fromCharCode(data[off],data[off+1],data[off+2],data[off+3])}
+function detectFamily(data){if(data.length<SRAM_SIZE)return null;for(const bank of [0,1]){const m=ascii4(data,bank*BANK_SIZE+0x100);if(m==='X7D8')return 'DIAG';if(m==='X7T1')return 'TRACE';if(m==='X7P1')return 'POKERTC'}return null}
+function allZero(data){for(let i=0;i<Math.min(data.length,SRAM_SIZE);i++)if(data[i]!==0)return false;return true}
+function expectedByte(bank,off,variant,family){const pair=family==='POKERTC'?[POKERTC_CAN,POKERTC_CONST]:CANARIES[variant];const cans=pair[0],consts=pair[1];if(off===0)return cans[bank];const addr=0xA000+off;return (((addr>>8)^(addr&0xFF)^consts[bank])&0xFF)}
+function patternAudit(data,variant,family,maxEntries=64){const mm=[];for(let bank=0;bank<4;bank++){const limit=bank<2?0x100:0x2000,base=bank*BANK_SIZE;for(let off=0;off<limit;off++){const exp=expectedByte(bank,off,variant,family),act=data[base+off];if(act!==exp){mm.push({bank,address:0xA000+off,expected:exp,actual:act});if(mm.length>=maxEntries)return {pass:false,mismatch_count_at_least:mm.length,mismatches:mm}}}}return {pass:mm.length===0,mismatch_count:mm.length,mismatches:mm}}
+function hexBytes(b){return Array.from(b,x=>x.toString(16).toUpperCase().padStart(2,'0')).join(' ')}
+function parseStressStats(data,family,variant){
+  const expectedMagic=family==='DIAG'?'X7S8':'X7S1',expectedVersion=family==='DIAG'?8:2;
+  const copies=[0,1].map(bank=>{const raw=sliceBlock(data,bank,0x1A0,128);return {raw,valid:raw.length===128&&ascii4(raw,0)===expectedMagic&&raw[4]===variant.charCodeAt(0)&&raw[5]===expectedVersion&&additive16Ok(raw,126)}});
+  const selectedMirror=copies.findIndex(x=>x.valid);
+  if(selectedMirror<0)return {valid:false,magic:expectedMagic,variant,version:expectedVersion,mirrors_valid:[copies[0].valid,copies[1].valid],mirrors_identical:bytesEq(copies[0].raw,copies[1].raw),entries:[]};
+  const raw=copies[selectedMirror].raw,entries=[];let off=6;
+  for(const test of STRESS_TESTS[family])for(const mode of STRESS_MODES){const runs=u16(raw,off),loops=u32(raw,off+2),ticks=u32(raw,off+6);entries.push({test,mode,runs,loops,ticks,elapsed:fmtTicks(ticks),timed:mode==='NORMAL'});off+=10}
+  return {valid:true,magic:ascii4(raw,0),variant:String.fromCharCode(raw[4]),version:raw[5],mirrors_valid:[copies[0].valid,copies[1].valid],mirrors_identical:bytesEq(copies[0].raw,copies[1].raw),selected_mirror:selectedMirror,checksum_stored:u16(raw,126),checksum_calculated:sumRange(raw,126),entries};
+}
+function parseDiagTrace(data,family){
+  const magic=family==='DIAG'?'X7D8':'X7T1',version=family==='DIAG'?8:2,tests=family==='DIAG'?COMMON_TESTS:TRACE_TESTS;
+  const supers=[0,1].map(bank=>{const s=sliceBlock(data,bank,0x100,64);return {s,valid:s.length===64&&ascii4(s,0)===magic&&s[5]===version&&additive16Ok(s,62)}});
+  const sel=supers.find(x=>x.valid)?.s;if(!sel)throw new Error(`No valid ${family} superblock`);
+  const variant=String.fromCharCode(sel[4]);if(!CANARIES[variant])throw new Error(`Unsupported ${family} variant ${JSON.stringify(variant)}`);
+  const flags=sel[6];
+  const superInfo={magic,variant,version,mirrors_valid:[supers[0].valid,supers[1].valid],mirrors_identical:bytesEq(supers[0].s,supers[1].s),flags,armed:!!(flags&1),fault:!!(flags&2),journal_full:!!(flags&4),result:sel[7],boot:u16(sel,8),generation:u16(sel,10),event_sequence:u16(sel,12),journal_count:Math.min(u16(sel,14),232),errors:u16(sel,16),external_passes:u16(sel,18),campaign:u16(sel,20),master_run:u16(sel,22),scenario:sel[24],test_id:sel[25],test:tests[sel[25]]??hex(sel[25]),mode:MODES[sel[26]]??hex(sel[26]),context:CONTEXTS[sel[27]]??hex(sel[27]),reason:REASONS[sel[28]]??hex(sel[28]),master_cycle:sel[29],master_phase:sel[30],master_cycles_config:sel[31],master_phases_config:sel[32],master_minutes_config:sel[33],last_selector:sel[34],fault_bank:sel[35],fault_address:(sel[37]<<8)|sel[36],expected:sel[38],actual:sel[39],loops:u32(sel,40),ticks:u32(sel,44),elapsed:fmtTicks(u32(sel,44)),rtc:Array.from(sel.slice(48,53))};
+  if(family==='TRACE'){superInfo.preset_id=sel[53];superInfo.preset=sel[53]?(PRESETS[sel[53]]??hex(sel[53])):'NONE'}
+  const journal=[];for(let i=0;i<superInfo.journal_count;i++){const base=0x300+i*32,r0=data.slice(base,base+32),r1=data.slice(BANK_SIZE+base,BANK_SIZE+base+32),ok0=r0.length===32&&additive16Ok(r0,30),ok1=r1.length===32&&additive16Ok(r1,30);if(!(ok0||ok1)){journal.push({slot:i,valid:false,mirror0_valid:ok0,mirror1_valid:ok1,mirrors_identical:bytesEq(r0,r1),mirror0_checksum_stored:u16(r0,30),mirror0_checksum_calculated:sumRange(r0,30),mirror1_checksum_stored:u16(r1,30),mirror1_checksum_calculated:sumRange(r1,30),mirror0_raw_hex:hexBytes(r0),mirror1_raw_hex:hexBytes(r1)});continue}const selectedMirror=ok0?0:1,r=ok0?r0:r1;journal.push({slot:i,valid:true,mirrors:ok0&&ok1&&bytesEq(r0,r1)?'OK':'DEGRADED',mirror0_valid:ok0,mirror1_valid:ok1,mirrors_identical:ok0&&ok1&&bytesEq(r0,r1),selected_mirror:selectedMirror,sequence:u16(r,0),event_id:r[2],event:EVENTS[r[2]]??hex(r[2]),test_id:r[3],test:tests[r[3]]??hex(r[3]),mode_id:r[4],mode:MODES[r[4]]??hex(r[4]),context_id:r[5],context:CONTEXTS[r[5]]??hex(r[5]),reason_id:r[6],reason:REASONS[r[6]]??hex(r[6]),scenario:r[7],boot:u16(r,8),generation:u16(r,10),master_run:u16(r,12),master_cycle:r[14],master_phase:r[15],loops:u32(r,16),ticks:u32(r,20),elapsed:fmtTicks(u32(r,20)),selector:r[24],selector_name:SELECTOR_NAMES[r[24]]??hex(r[24]),bank:r[25],address:(r[27]<<8)|r[26],expected:r[28],actual:r[29],checksum_stored:u16(r,30),checksum_calculated:sumRange(r,30),mirror0_checksum_stored:u16(r0,30),mirror0_checksum_calculated:sumRange(r0,30),mirror1_checksum_stored:u16(r1,30),mirror1_checksum_calculated:sumRange(r1,30),raw_hex:hexBytes(r),mirror0_raw_hex:hexBytes(r0),mirror1_raw_hex:hexBytes(r1)})}
+  const fmagic=family==='DIAG'?'X7F8':'X7F1';const caps=[0,1].map(bank=>{const f=sliceBlock(data,bank,0x140,96);return {f,ok:f.length===96&&ascii4(f,0)===fmagic&&f[4]===variant.charCodeAt(0)&&f[5]===version&&additive16Ok(f,94)}});const cap=caps.find(x=>x.ok)?.f;let faultInfo=null;if(cap){faultInfo={mirrors_valid:[caps[0].ok,caps[1].ok],mirrors_identical:bytesEq(caps[0].f,caps[1].f),campaign:u16(cap,6),sequence:u16(cap,8),journal_count:u16(cap,10),boot:u16(cap,12),generation:u16(cap,14),errors:u16(cap,16),master_run:u16(cap,18),event:EVENTS[cap[20]]??hex(cap[20]),test:tests[cap[21]]??hex(cap[21]),mode:MODES[cap[22]]??hex(cap[22]),context:CONTEXTS[cap[23]]??hex(cap[23]),reason:REASONS[cap[24]]??hex(cap[24]),scenario:cap[25],selector:cap[31],selector_name:SELECTOR_NAMES[cap[31]]??hex(cap[31]),bank:cap[32],address:(cap[34]<<8)|cap[33],expected:cap[35],actual:cap[36],loops:u32(cap,37),ticks:u32(cap,41),elapsed:fmtTicks(u32(cap,41)),rtc:Array.from(cap.slice(45,50))};if(family==='TRACE'){faultInfo.preset_id=cap[58];faultInfo.preset=cap[58]?(PRESETS[cap[58]]??hex(cap[58])):'NONE'}}
+  return {family,format:`${magic} / ${version}`,super:superInfo,first_fault:faultInfo,stress_stats:parseStressStats(data,family,variant),pattern_audit:patternAudit(data,variant,family),journal};
+}
+function parsePokertc(data){
+  const supers=[0,1].map(bank=>{const s=sliceBlock(data,bank,0x100,64);return {s,valid:s.length===64&&ascii4(s,0)==='X7P1'&&s[4]===1&&additive16Ok(s,62)}});const s=supers.find(x=>x.valid)?.s;if(!s)throw new Error('No valid POKERTC X7P1 superblock');
+  const vals=[0x11,0x22,0x05,0xA7,0x01],valueMap=[];for(let i=0;i<5;i++){const r=s.slice(19+i*5,24+i*5);valueMap.push({selector:0x08+i,value:vals[i],bank_values:Array.from(r.slice(0,4)),mask:r[4]})}
+  const seq=u16(s,46),jidx=s[48]&31,count=Math.min(seq,32),first=(jidx-count)&31,journal=[];for(let n=0;n<count;n++){const slot=(first+n)&31,r0=data.slice(0x200+slot*16,0x200+(slot+1)*16),r1=data.slice(0x2200+slot*16,0x2200+(slot+1)*16);let a0=0,a1=0;for(let i=0;i<15;i++){a0=(a0+r0[i])&0xFF;a1=(a1+r1[i])&0xFF}const ok0=r0.length===16&&a0===r0[15],ok1=r1.length===16&&a1===r1[15];if(!(ok0||ok1)){journal.push({slot,valid:false,mirror0_valid:ok0,mirror1_valid:ok1,mirrors_identical:bytesEq(r0,r1),mirror0_checksum_stored:r0[15],mirror0_checksum_calculated:a0,mirror1_checksum_stored:r1[15],mirror1_checksum_calculated:a1,mirror0_raw_hex:hexBytes(r0),mirror1_raw_hex:hexBytes(r1)});continue}const selectedMirror=ok0?0:1,r=ok0?r0:r1;journal.push({slot,valid:true,mirrors:ok0&&ok1&&bytesEq(r0,r1)?'OK':'DEGRADED',mirror0_valid:ok0,mirror1_valid:ok1,mirrors_identical:ok0&&ok1&&bytesEq(r0,r1),selected_mirror:selectedMirror,sequence:u16(r,0),test_id:r[2],test:POKERTC_TESTS[r[2]]??hex(r[2]),result:r[3],result_name:pokertcResultName(r[2],r[3]),selector:r[4],selector_name:SELECTOR_NAMES[r[4]]??hex(r[4]),expected:r[5],actual:r[6],probe_before:r[7],probe_after:r[8],fault_bank:r[9],fault_address:(r[11]<<8)|r[10],aux0:r[12],aux1:r[13],value_map_mask:r[14],checksum_stored:r[15],checksum_calculated:a0,mirror0_checksum_stored:r0[15],mirror0_checksum_calculated:a0,mirror1_checksum_stored:r1[15],mirror1_checksum_calculated:a1,raw_hex:hexBytes(r),mirror0_raw_hex:hexBytes(r0),mirror1_raw_hex:hexBytes(r1)})}
+  return {family:'POKERTC',format:'X7P1 / 1',super:{magic:'X7P1',version:1,mirrors_valid:[supers[0].valid,supers[1].valid],mirrors_identical:bytesEq(supers[0].s,supers[1].s),boot:u16(s,5),errors:u16(s,7),last_test_id:s[9],last_test:POKERTC_TESTS[s[9]]??hex(s[9]),result:s[10],selector:s[11],expected:s[12],actual:s[13],rtc:Array.from(s.slice(14,19)),aux:[s[44],s[45]],journal_sequence:seq,journal_index:jidx},value_map:valueMap,pattern_audit:patternAudit(data,'A','POKERTC'),journal};
+}
+function inspectBytes(input){const raw=input instanceof Uint8Array?input:new Uint8Array(input);if(raw.length<SRAM_SIZE)throw new Error(`Expected at least ${SRAM_SIZE} bytes of SRAM, got ${raw.length}`);const data=raw.slice(0,SRAM_SIZE);const family=detectFamily(data);if(!family){if(allZero(data))return {family:'UNINITIALIZED',format:'cleared / all-zero SRAM',status:'SRAM is fully zeroed. This is the expected persistent state immediately after the SELECT+START+B+A SRAM-clear action, before re-initialization.',sram_bytes:SRAM_SIZE,input_bytes:raw.length,trailing_bytes:raw.length-SRAM_SIZE};throw new Error('Unknown SRAM format: no valid X7D8/X7T1/X7P1 superblock magic found')}const r=family==='POKERTC'?parsePokertc(data):parseDiagTrace(data,family);r.sram_bytes=SRAM_SIZE;r.input_bytes=raw.length;r.trailing_bytes=raw.length-SRAM_SIZE;return r}
+function hex(v,w=2){return `0x${Number(v).toString(16).toUpperCase().padStart(w,'0')}`}
+/* CORE END */
+
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function fmtValue(k,v){if(Array.isArray(v))return v.map(x=>typeof x==='number'?x.toString(16).toUpperCase().padStart(2,'0'):String(x)).join(' ');if(typeof v==='boolean')return v?'true':'false';if(typeof v==='number'&&['scenario','selector','last_selector','expected','actual','flags','result','fault_bank','bank','event_id','test_id','mode_id','context_id','reason_id','probe_before','probe_after','aux0','aux1','value_map_mask','checksum_stored','checksum_calculated','mirror0_checksum_stored','mirror0_checksum_calculated','mirror1_checksum_stored','mirror1_checksum_calculated'].includes(k))return hex(v,k.includes('checksum')&&v>0xFF?4:2);if(k==='fault_address'||k==='address')return hex(v,4);return String(v)}
+function kvTable(obj){let h='<thead><tr><th>Field</th><th>Value</th></tr></thead><tbody>';for(const [k,v] of Object.entries(obj)){const cls=k.endsWith('_raw_hex')?'mono raw':'mono';h+=`<tr><td class="mono">${esc(k)}</td><td class="${cls}">${esc(fmtValue(k,v))}</td></tr>`}return h+'</tbody>'}
+// Details are rendered as a full-width row below the selected journal entry.
+function journalDetailGrid(x){let h='<div class="journal-detail-grid">';for(const [k,v] of Object.entries(x)){const raw=k.endsWith('_raw_hex');h+=`<div class="detail-field${raw?' raw-field':''}"><div class="detail-key">${esc(k)}</div><div class="detail-value${raw?' raw':''}">${esc(fmtValue(k,v))}</div></div>`}return h+'</div>'}
+function journalOutcomeClass(label){const s=String(label??'').toUpperCase();if(s==='PASS'||s==='TEST_PASS'||s==='EXT_PASS'||s==='MASTER_DONE')return 'goodtxt';if(s.includes('FAULT')||s.includes('FAIL')||s==='ALIAS')return 'badtxt';return 'warntxt'}
+function journalRows(x,cells,colspan){const id=`journal-detail-${x.slot}-${x.sequence??'invalid'}`;const arrow=`<td class="journal-toggle-cell"><button class="journal-toggle" type="button" tabindex="-1" aria-label="Expand journal row" aria-expanded="false">▶</button></td>`;return `<tr class="journal-row" tabindex="0" role="button" aria-expanded="false" aria-controls="${id}">${arrow}${cells}</tr><tr id="${id}" class="journal-detail-row hidden"><td colspan="${colspan}"><div class="journal-detail-panel">${journalDetailGrid(x)}</div></td></tr>`}
+function toggleJournalRow(row){const detail=row.nextElementSibling;if(!detail||!detail.classList.contains('journal-detail-row'))return;const open=row.getAttribute('aria-expanded')==='true';row.setAttribute('aria-expanded',open?'false':'true');detail.classList.toggle('hidden',open);const b=row.querySelector('.journal-toggle');if(b){b.textContent=open?'▶':'▼';b.setAttribute('aria-expanded',open?'false':'true')}}
+function setStatus(text,kind='good'){const e=document.getElementById('status');e.className=`status show ${kind}`;e.innerHTML=text}
+function render(r,name){
+  window.currentDecoded=r;window.currentName=name;
+  document.getElementById('results').classList.remove('hidden');
+  document.getElementById('jsonBtn').disabled=false;document.getElementById('resetBtn').disabled=false;
+  const cards=document.getElementById('cards');
+  if(r.family==='UNINITIALIZED'){
+    cards.innerHTML=`<div class="card"><div class="k">File</div><div class="v">${esc(name)}</div></div><div class="card"><div class="k">State</div><div class="v warntxt">CLEARED</div></div><div class="card"><div class="k">Input</div><div class="v">${r.input_bytes} B</div></div>`;
+    document.getElementById('superTable').innerHTML=kvTable({status:r.status});
+    document.getElementById('statsSection').classList.add('hidden');
+    document.getElementById('valueMapSection').classList.add('hidden');document.getElementById('faultSection').classList.add('hidden');
+    document.getElementById('patternSummary').innerHTML='<span class="pill warn">NOT APPLICABLE</span> No initialized canary pattern is present.';document.getElementById('patternTable').innerHTML='';
+    document.getElementById('journalSummary').textContent='No journal: SRAM is cleared/uninitialized.';document.getElementById('journalTable').innerHTML='';
+    document.getElementById('jsonOut').textContent=JSON.stringify(r,null,2);
+    setStatus('Recognized a fully zeroed SRAM image. This matches the SRAM-clear terminal state before the ROM is initialized again.','warn');return;
+  }
+  const pa=r.pattern_audit,mirrors=r.super.mirrors_valid?.every(Boolean)&&r.super.mirrors_identical;
+  cards.innerHTML=`<div class="card"><div class="k">File</div><div class="v">${esc(name)}</div></div><div class="card"><div class="k">Family</div><div class="v">${esc(r.family)}</div></div><div class="card"><div class="k">Format</div><div class="v">${esc(r.format)}</div></div><div class="card"><div class="k">Pattern audit</div><div class="v ${pa.pass?'goodtxt':'badtxt'}">${pa.pass?'PASS':'FAIL'}</div></div><div class="card"><div class="k">Mirrors</div><div class="v ${mirrors?'goodtxt':'warntxt'}">${mirrors?'OK':'CHECK'}</div></div><div class="card"><div class="k">Input</div><div class="v">${r.input_bytes} B</div></div>`;
+  document.getElementById('superTable').innerHTML=kvTable(r.super);
+
+  const statsSec=document.getElementById('statsSection');
+  if(r.stress_stats){
+    statsSec.classList.remove('hidden');const st=r.stress_stats;
+    document.getElementById('statsSummary').innerHTML=st.valid
+      ? `Mirrored statistics block: <strong>${st.mirrors_identical&&st.mirrors_valid.every(Boolean)?'OK':'CHECK'}</strong>. NORMAL is timer-measured; BARE modes are intentionally not timer-measured.`
+      : '<span class="badtxt">No valid stress-statistics mirror could be decoded.</span>';
+    let t='<thead><tr><th>Test</th><th>Mode</th><th>Runs</th><th>Total loops</th><th>Total time</th><th>Raw ticks</th></tr></thead><tbody>';
+    for(const x of st.entries){const time=x.timed?x.elapsed:'not timed';t+=`<tr><td>${esc(x.test)}</td><td>${esc(x.mode)}</td><td class="mono">${x.runs}</td><td class="mono">${x.loops}</td><td class="mono">${esc(time)}</td><td class="mono">${x.ticks}</td></tr>`}
+    document.getElementById('statsTable').innerHTML=t+'</tbody>';
+  }else statsSec.classList.add('hidden');
+
+  if(r.value_map){const sec=document.getElementById('valueMapSection');sec.classList.remove('hidden');let t='<thead><tr><th>Selector</th><th>Write</th><th>Bank0</th><th>Bank1</th><th>Bank2</th><th>Bank3</th><th>Mask</th></tr></thead><tbody>';for(const x of r.value_map)t+=`<tr><td class="mono">${hex(x.selector)}</td><td class="mono">${hex(x.value)}</td>${x.bank_values.map(v=>`<td class="mono">${hex(v)}</td>`).join('')}<td class="mono">${hex(x.mask)}</td></tr>`;document.getElementById('valueMapTable').innerHTML=t+'</tbody>'}else document.getElementById('valueMapSection').classList.add('hidden');
+
+  const cnt=pa.mismatch_count??pa.mismatch_count_at_least??pa.mismatches.length;
+  document.getElementById('patternSummary').innerHTML=`<span class="pill ${pa.pass?'good':'bad'}">${pa.pass?'PASS':'FAIL'}</span> ${cnt} mismatch${cnt===1?'':'es'}${pa.mismatch_count_at_least?' shown/at least':''}.`;
+  let pt='<thead><tr><th>Bank</th><th>Address</th><th>Expected</th><th>Actual</th></tr></thead><tbody>';for(const x of pa.mismatches)pt+=`<tr><td class="mono">${x.bank}</td><td class="mono">${hex(x.address,4)}</td><td class="mono">${hex(x.expected)}</td><td class="mono badtxt">${hex(x.actual)}</td></tr>`;document.getElementById('patternTable').innerHTML=pt+'</tbody>';
+  if(r.first_fault){document.getElementById('faultSection').classList.remove('hidden');document.getElementById('faultTable').innerHTML=kvTable(r.first_fault)}else document.getElementById('faultSection').classList.add('hidden');
+
+  const j=r.journal||[];
+  document.getElementById('journalSummary').textContent=r.family==='POKERTC'
+    ? `${j.length}/32 retained result entr${j.length===1?'y':'ies'}. Circular journal: after 32 results, the oldest entries are overwritten. Expand any slot for every stored field and raw mirror bytes.`
+    : `${j.length}/232 decoded event entr${j.length===1?'y':'ies'}. Append-only journal: logging freezes when the 232-event capacity is reached${r.super?.journal_full?' (currently full)':''}. Expand any slot for every stored field, timing/counters, checksums and raw mirror bytes.`;
+  let jt;
+  if(r.family==='POKERTC'){
+    jt='<thead><tr><th></th><th>Seq</th><th>Slot</th><th>Test</th><th>Result</th><th>Sel</th><th>Probe</th><th>VM mask</th><th>Mirrors</th></tr></thead><tbody>';
+    for(const x of j){if(!x.valid){const cells=`<td>—</td><td>${x.slot}</td><td colspan="6" class="badtxt">INVALID / no checksum-valid mirror</td>`;jt+=journalRows(x,cells,9);continue}const resultClass=journalOutcomeClass(x.result_name),cells=`<td class="mono">${hex(x.sequence,4)}</td><td>${x.slot}</td><td>${esc(x.test)}</td><td class="event-state ${resultClass}">${esc(x.result_name)}</td><td class="mono">${hex(x.selector)}</td><td class="mono">${hex(x.probe_before)}→${hex(x.probe_after)}</td><td class="mono">${hex(x.value_map_mask)}</td><td>${esc(x.mirrors)}</td>`;jt+=journalRows(x,cells,9)}
+  }else{
+    jt='<thead><tr><th></th><th>Seq</th><th>Slot</th><th>Test</th><th>Event</th><th>Mode</th><th>Reason</th><th>Loops</th><th>Elapsed</th><th>Mirrors</th></tr></thead><tbody>';
+    for(const x of j){if(!x.valid){const cells=`<td>—</td><td>${x.slot}</td><td colspan="7" class="badtxt">INVALID / no checksum-valid mirror</td>`;jt+=journalRows(x,cells,10);continue}const elapsed=(x.mode==='BARE_MAX'||x.mode==='BARE_FIXED')?'not timed':x.elapsed,eventClass=journalOutcomeClass(x.event),cells=`<td class="mono">${hex(x.sequence,4)}</td><td>${x.slot}</td><td>${esc(x.test)}</td><td class="event-state ${eventClass}">${esc(x.event)}</td><td>${esc(x.mode)}</td><td>${esc(x.reason)}</td><td class="mono">${x.loops}</td><td class="mono nowrap">${esc(elapsed)}</td><td>${esc(x.mirrors)}</td>`;jt+=journalRows(x,cells,10)}
+  }
+  document.getElementById('journalTable').innerHTML=jt+'</tbody>';
+  document.getElementById('jsonOut').textContent=JSON.stringify(r,null,2);
+  setStatus(`Loaded <strong>${esc(name)}</strong>: ${esc(r.family)} ${esc(r.format)}. Pattern audit: <strong>${pa.pass?'PASS':'FAIL'}</strong>.`,pa.pass?'good':'bad');
+}
+async function loadFile(file){try{const buf=await file.arrayBuffer(),r=inspectBytes(buf);render(r,file.name)}catch(e){document.getElementById('results').classList.add('hidden');document.getElementById('jsonBtn').disabled=true;document.getElementById('resetBtn').disabled=false;setStatus(`<strong>Could not decode file.</strong> ${esc(e.message||e)}`,'bad')}}
+function initUI(){const fi=document.getElementById('file'),drop=document.getElementById('drop'),journal=document.getElementById('journalTable');fi.addEventListener('change',()=>{if(fi.files[0])loadFile(fi.files[0])});for(const ev of ['dragenter','dragover'])drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('drag')});for(const ev of ['dragleave','drop'])drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('drag')});drop.addEventListener('drop',e=>{const f=e.dataTransfer.files[0];if(f)loadFile(f)});drop.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();fi.click()}});journal.addEventListener('click',e=>{const row=e.target.closest('.journal-row');if(row)toggleJournalRow(row)});journal.addEventListener('keydown',e=>{const row=e.target.closest('.journal-row');if(row&&(e.key==='Enter'||e.key===' ')){e.preventDefault();toggleJournalRow(row)}});document.getElementById('resetBtn').addEventListener('click',()=>{fi.value='';window.currentDecoded=null;document.getElementById('results').classList.add('hidden');document.getElementById('status').className='status';document.getElementById('jsonBtn').disabled=true;document.getElementById('resetBtn').disabled=true});document.getElementById('jsonBtn').addEventListener('click',()=>{if(!window.currentDecoded)return;const blob=new Blob([JSON.stringify(window.currentDecoded,null,2)+'\n'],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=(window.currentName||'capture').replace(/\.[^.]+$/,'')+'.decoded.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)})}
+if(typeof window!=='undefined')window.X7Inspector={inspectBytes,detectFamily,parseDiagTrace,parsePokertc,patternAudit};
+if(typeof document!=='undefined')initUI();
+</script>
+</body>
+</html>

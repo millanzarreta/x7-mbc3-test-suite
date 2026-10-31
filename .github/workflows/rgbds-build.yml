@@ -1,0 +1,32 @@
+name: Build and verify
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install test dependency
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nodejs
+          node --version
+      - name: Install canonical RGBDS toolchain
+        run: |
+          RGBDS_VERSION="$(make -s print-rgbds-version)"
+          echo "Installing RGBDS ${RGBDS_VERSION}"
+          curl -fL -o /tmp/rgbds.tar.xz "https://github.com/gbdev/rgbds/releases/download/v${RGBDS_VERSION}/rgbds-linux-x86_64.tar.xz"
+          mkdir /tmp/rgbds
+          tar -xf /tmp/rgbds.tar.xz -C /tmp/rgbds
+          (
+            cd /tmp/rgbds
+            sudo ./install.sh
+          )
+          rgbasm -V
+          rgblink -V
+          rgbfix -V
+      - name: Build and verify repository
+        run: make audit
